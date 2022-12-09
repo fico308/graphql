@@ -2,14 +2,21 @@
 #
 # https://gqlgen.com/getting-started/
 
-type Todo {
+scalar Time
+
+interface Node {
+  id: ID!
+}
+
+type Todo implements Node{
   id: ID!
   text: String!
   done: Boolean!
   user: User!
+  syncedToCloud: Boolean!
 }
 
-type User {
+type User implements Node {
   id: ID!
   name: String!
 }
@@ -20,7 +27,7 @@ type Query {
 
 input NewTodo {
   text: String!
-  userId: String!
+  userId: ID!
 }
 
 type Mutation {

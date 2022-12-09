@@ -1,28 +1,36 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/fico308/graphql/graph"
+	"github.com/fico308/graphql/graph/auth"
+	"github.com/go-chi/chi"
 )
 
-const defaultPort = "8080"
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = defaultPort
+	router := chi.NewRouter()
+
+	router.Use(auth.Middleware())
+
+	srv := handler.NewDefaultServer(
+		graph.NewExecutableSchema(
+			graph.Config{
+				Resolvers: &graph.Resolver{},
+			},
+		),
+	)
+
+	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	router.Handle("/query", srv)
+
+	fmt.Println("Server start")
+	err := http.ListenAndServe(":8080", router)
+	if err != nil {
+		panic(err)
 	}
-
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}}))
-
-	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", srv)
-
-	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

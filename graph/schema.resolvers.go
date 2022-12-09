@@ -6,19 +6,53 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/99designs/gqlgen/graphql"
+	"github.com/fico308/graphql/graph/auth"
 	"github.com/fico308/graphql/graph/model"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
 // CreateTodo is the resolver for the createTodo field.
 func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: CreateTodo - createTodo"))
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return nil, errors.New("Permission denied")
+	}
+	newTodo := &model.Todo{
+		ID:     len(todos),
+		Text:   input.Text,
+		UserID: input.UserID,
+		Done:   false,
+	}
+	todos = append(todos, newTodo)
+	return newTodo, nil
 }
 
 // Todos is the resolver for the todos field.
 func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: Todos - todos"))
+	return todos, nil
+}
+
+// User is the resolver for the user field.
+func (r *todoResolver) User(ctx context.Context, obj *model.Todo) (*model.User, error) {
+	if obj.UserID == 0 {
+		graphql.AddError(ctx, gqlerror.Errorf("User not found"))
+	}
+	return &model.User{
+		ID:   obj.UserID,
+		Name: fmt.Sprintf("name-%d", obj.UserID),
+	}, nil
+}
+
+// SyncedToCloud is the resolver for the syncedToCloud field.
+func (r *todoResolver) SyncedToCloud(ctx context.Context, obj *model.Todo) (bool, error) {
+	if obj.ID%2 == 0 {
+		return true, nil
+	}
+	return false, nil
 }
 
 // Mutation returns MutationResolver implementation.
@@ -27,5 +61,9 @@ func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// Todo returns TodoResolver implementation.
+func (r *Resolver) Todo() TodoResolver { return &todoResolver{r} }
+
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type todoResolver struct{ *Resolver }
